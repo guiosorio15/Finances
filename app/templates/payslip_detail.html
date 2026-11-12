@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+
+{% block document_title %}{{ month_display(payslip.month) }}{% endblock %}
+{% block eyebrow %}Recibo de vencimento{% endblock %}
+{% block page_title %}{{ month_display(payslip.month) }}{% endblock %}
+{% block header_actions %}
+  <a class="btn btn-ghost" href="/payslips">{{ icon('chevron-left', 15) }} Recibos</a>
+  <a class="btn btn-primary" href="/payslips/import">{{ icon('upload', 16) }} Importar outro</a>
+{% endblock %}
+
+{% block content %}
+{% if warnings %}
+<div class="callout callout-warn">
+  <span class="callout-icon">{{ icon('alert', 18) }}</span>
+  <div>
+    <strong>Notas da leitura automática</strong>
+    <ul>{% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+  </div>
+</div>
+{% endif %}
+
+<section class="card payslip-detail-hero">
+  <div class="payslip-detail-top">
+    <div>
+      <p class="eyebrow eyebrow-light">{{ payslip.employer or 'Sem empregador' }}</p>
+      <h2>{{ month_display(payslip.month) }}</h2>
+      <p class="payslip-detail-person">{{ payslip.employee_name or profile_name }}{% if payslip.professional_category %} · {{ payslip.professional_category }}{% endif %}</p>
+    </div>
+    <span class="hero-status">{{ icon('circle-check', 14) }} confirmado</span>
+  </div>
+
+  <div class="payslip-detail-amounts">
+    <div>
+      <span class="hero-label">Total recebido</span>
+      <strong class="payslip-detail-total">{{ eur(payslip.total_net) }}</strong>
+    </div>
+    <div class="payslip-detail-split">
+      <div><span>em conta</span><strong>{{ eur(payslip.net_cash) }}</strong></div>
+      <div><span>cartão refeição</span><strong>{{ eur(payslip.net_meal) }}</strong></div>
+    </div>
+  </div>
+
+  <div class="wage-bar" role="img" aria-label="Composição do rendimento">
+    <span class="wage-seg wage-net" style="width: {{ ((payslip.net_cash / (payslip.gross_taxable + payslip.net_meal)) * 100)|round(1) if (payslip.gross_taxable + payslip.net_meal) else 0 }}%" title="Líquido em conta"></span>
+    <span class="wage-seg wage-irs" style="width: {{ ((payslip.irs_amount / (payslip.gross_taxable + payslip.net_meal)) * 100)|round(1) if (payslip.gross_taxable + payslip.net_meal) else 0 }}%" title="IRS"></span>
+    <span class="wage-seg wage-ss" style="width: {{ ((payslip.ss_amount / (payslip.gross_taxable + payslip.net_meal)) * 100)|round(1) if (payslip.gross_taxable + payslip.net_meal) else 0 }}%" title="Segurança Social"></span>
+    <span class="wage-seg wage-meal" style="width: {{ ((payslip.net_meal / (payslip.gross_taxable + payslip.net_meal)) * 100)|round(1) if (payslip.gross_taxable + payslip.net_meal) else 0 }}%" title="Cartão refeição"></span>
+  </div>
+  <div class="wage-legend">
+    <span><i class="dot dot-net"></i>conta {{ eur(payslip.net_cash, 0) }}</span>
+    <span><i class="dot dot-irs"></i>IRS {{ eur(payslip.irs_amount, 0) }}</span>
+    <span><i class="dot dot-ss"></i>SS {{ eur(payslip.ss_amount, 0) }}</span>
+    <span><i class="dot dot-meal"></i>refeição {{ eur(payslip.net_meal, 0) }}</span>
+  </div>
+</section>
+
+<div class="detail-grid">
+  <div class="detail-main">
+    <section class="card detail-card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">Remunerações</p>
+          <h2 class="card-title">O que foi acordado.</h2>
+        </div>
+        <span class="pill pill-ochre">bruto</span>
+      </div>
+      <table class="data-table">
+        <tbody>
+          <tr><td>Ordenado base</td><td>{{ eur(payslip.base_salary) }}</td></tr>
+          <tr><td>Subsídio de Natal</td><td>{{ eur(payslip.christmas_subsidy) }}</td></tr>
+          <tr><td>Subsídio de Férias</td><td>{{ eur(payslip.holiday_subsidy) }}</td></tr>
+          {% if payslip.other_earnings %}<tr><td>Outras remunerações</td><td>{{ eur(payslip.other_earnings) }}</td></tr>{% endif %}
+          <tr class="is-subtotal"><td>Total sujeito a IRS</td><td>{{ eur(payslip.gross_taxable) }}</td></tr>
+          <tr><td>Cartão refeição <span class="table-note">{{ payslip.meal_days|round|int }} dias × {{ eur(payslip.meal_daily) }}</span></td><td>{{ eur(payslip.meal_allowance) }}</td></tr>
+          <tr class="is-total"><td>Total bruto</td><td>{{ eur(payslip.gross_taxable + payslip.meal_allowance) }}</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card detail-card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">Descontos</p>
+          <h2 class="card-title">O que ficou pelo caminho.</h2>
+        </div>
+        <span class="pill pill-terracotta">− {{ eur(payslip.total_deductions) }}</span>
+      </div>
+      <table class="data-table">
+        <tbody>
+          <tr><td>IRS <span class="table-note">{{ pct_pt(payslip.irs_rate, 2) }}%</span></td><td>− {{ eur(payslip.irs_amount) }}</td></tr>
+          <tr><td>Segurança Social <span class="table-note">{{ pct_pt(payslip.ss_rate, 2) }}%</span></td><td>− {{ eur(payslip.ss_amount) }}</td></tr>
+          {% if payslip.other_deductions %}<tr><td>Outros descontos</td><td>− {{ eur(payslip.other_deductions) }}</td></tr>{% endif %}
+          <tr class="is-total"><td>Total de descontos</td><td>− {{ eur(payslip.total_deductions) }}</td></tr>
+        </tbody>
+      </table>
+      <div class="detail-note-row">
+        <span>Taxa efetiva sobre o bruto tributável</span>
+        <strong>{{ pct_pt(payslip.deduction_rate, 1) }}%</strong>
+      </div>
+    </section>
+
+    <section class="card detail-card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">Líquido</p>
+          <h2 class="card-title">O que chegou.</h2>
+        </div>
+        <span class="pill pill-green">{{ payslip.net_rate|round|int }}% do bruto</span>
+      </div>
+      <table class="data-table">
+        <tbody>
+          <tr><td>Transferência para a conta</td><td>{{ eur(payslip.net_cash) }}</td></tr>
+          <tr><td>Cartão refeição</td><td>{{ eur(payslip.net_meal) }}</td></tr>
+          <tr class="is-total"><td>Total recebido</td><td>{{ eur(payslip.total_net) }}</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <aside class="detail-aside">
+    <section class="card side-card">
+      <p class="eyebrow">Identificação</p>
+      <dl class="meta-list">
+        <div><dt>Data de pagamento</dt><dd>{{ date_full(payslip.pay_date) }}</dd></div>
+        <div><dt>NIF</dt><dd>{{ payslip.employee_nif or '—' }}</dd></div>
+        <div><dt>Segurança Social</dt><dd>{{ payslip.employee_ss or '—' }}</dd></div>
+        <div><dt>Nº colaborador</dt><dd>{{ payslip.employee_number or '—' }}</dd></div>
+        <div><dt>Local</dt><dd>{{ payslip.work_location or '—' }}</dd></div>
+        <div><dt>IBAN</dt><dd class="mono">{{ payslip.iban or '—' }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="card side-card">
+      <p class="eyebrow">Projeção simples</p>
+      <h3>Se este mês se repetir 12 vezes.</h3>
+      <div class="projection">
+        <div><span>Bruto</span><strong>{{ eur(payslip.annual_projection_gross) }}</strong></div>
+        <div><span>Líquido</span><strong>{{ eur(payslip.annual_projection_net) }}</strong></div>
+      </div>
+      <p class="card-note card-note-small">Projeção linear, só para referência. Se recebes subsídios em duodécimos, o valor mensal já os inclui.</p>
+    </section>
+
+    <section class="card side-card side-card-sage">
+      <span class="icon-tile icon-tile-light">{{ icon('file-text', 18) }}</span>
+      <h3>Documento original.</h3>
+      <p>O PDF está guardado localmente e associado a este recibo.</p>
+      <a class="btn btn-soft btn-full" href="/payslips/{{ payslip.id }}/file">{{ icon('download', 15) }} Abrir PDF</a>
+      <form method="post" action="/payslips/{{ payslip.id }}/delete" onsubmit="return confirm('Apagar este recibo e os movimentos associados?');">
+        <button class="btn btn-ghost btn-full btn-danger-text" type="submit">{{ icon('trash', 15) }} Apagar recibo</button>
+      </form>
+    </section>
+
+    {% if payslip.raw_text %}
+    <details class="card side-card raw-card">
+      <summary>Texto original do PDF {{ icon('chevron-down', 15) }}</summary>
+      <pre>{{ payslip.raw_text[:2400] }}</pre>
+    </details>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

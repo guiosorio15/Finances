@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+
+{% block document_title %}Definições{% endblock %}
+{% block eyebrow %}Sistema{% endblock %}
+{% block page_title %}Definições{% endblock %}
+
+{% block content %}
+<div class="settings-layout">
+  <div class="settings-main">
+    <section class="card form-section">
+      <div class="form-section-head">
+        <div>
+          <p class="eyebrow">Perfil e alocação</p>
+          <h2>Como divides o rendimento.</h2>
+        </div>
+        <span class="pill">{{ profile_name }}</span>
+      </div>
+      <form method="post" action="/settings/profile" class="form-grid" data-allocation-form>
+        <label class="field field-full">
+          <span class="field-label">O teu nome</span>
+          <input type="text" name="profile_name" value="{{ profile_name }}" required>
+        </label>
+        <label class="field">
+          <span class="field-label">Essenciais %</span>
+          <input type="number" name="essentials" min="0" max="100" value="{{ allocation.essentials }}" data-alloc-input>
+        </label>
+        <label class="field">
+          <span class="field-label">Estilo de vida %</span>
+          <input type="number" name="lifestyle" min="0" max="100" value="{{ allocation.lifestyle }}" data-alloc-input>
+        </label>
+        <label class="field">
+          <span class="field-label">Futuro %</span>
+          <input type="number" name="future" min="0" max="100" value="{{ allocation.future }}" data-alloc-input>
+        </label>
+        <label class="field">
+          <span class="field-label">Meses de emergência</span>
+          <input type="number" name="emergency_months" min="1" max="24" value="{{ settings.get('emergency_months', '6') }}">
+        </label>
+        <div class="form-grid-foot field-full">
+          <span class="allocation-sum" data-allocation-sum>Total: {{ allocation.essentials + allocation.lifestyle + allocation.future }}%</span>
+          <button class="btn btn-primary" type="submit">{{ icon('check', 16) }} Guardar</button>
+        </div>
+      </form>
+      <p class="card-note">A soma tem de dar 100%. A regra serve para distribuir o rendimento no orçamento; podes ajustar todos os meses.</p>
+    </section>
+
+    <section class="card form-section">
+      <div class="form-section-head">
+        <div>
+          <p class="eyebrow">Contas</p>
+          <h2>Onde o dinheiro vive.</h2>
+        </div>
+        <button class="btn btn-ghost btn-sm" type="button" data-open-account>{{ icon('plus', 15) }} Nova conta</button>
+      </div>
+      <div class="manage-list">
+        {% for a in accounts %}
+        <div class="manage-row">
+          <span class="icon-tile" style="--tile-color: {{ a.color or '#2F5D46' }}">{{ icon('wallet', 16) }}</span>
+          <div class="manage-copy">
+            <strong>{{ a.name }}</strong>
+            <span>{{ {'checking':'Conta à ordem','savings':'Poupança','meal':'Cartão refeição','investment':'Investimento','cash':'Dinheiro','credit':'Crédito'}.get(a.type, a.type) }}{% if a.institution %} · {{ a.institution }}{% endif %}</span>
+          </div>
+          <span class="manage-balance">saldo {{ eur(balances.get(a.id, a.opening_balance)) }}</span>
+          {% if a.slug in ['conta-ordem', 'cartao-refeicao'] %}
+          <span class="pill pill-quiet">essencial</span>
+          {% else %}
+          <form method="post" action="/settings/accounts/{{ a.id }}/delete" onsubmit="return confirm('Apagar ou arquivar esta conta?');">
+            <button class="icon-btn icon-btn-quiet icon-btn-danger" type="submit" aria-label="Apagar {{ a.name }}">{{ icon('trash', 15) }}</button>
+          </form>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="card form-section">
+      <div class="form-section-head">
+        <div>
+          <p class="eyebrow">Categorias</p>
+          <h2>Os nomes do teu dinheiro.</h2>
+        </div>
+        <button class="btn btn-ghost btn-sm" type="button" data-open-category>{{ icon('plus', 15) }} Nova categoria</button>
+      </div>
+      <div class="manage-list manage-list-categories">
+        {% for c in categories %}
+        <div class="manage-row">
+          <span class="icon-tile" style="--tile-color: {{ c.color or '#8C7A5E' }}">{{ icon(c.icon or 'more', 16) }}</span>
+          <div class="manage-copy">
+            <strong>{{ c.name }}</strong>
+            <span>{{ group_label(c.group_name) }} · {{ {'income':'Rendimento','expense':'Gasto','saving':'Poupança','investment':'Investimento'}.get(c.kind, c.kind) }}</span>
+          </div>
+          {% if c.slug in ['salario','subsidio-alimentacao','conta-ordem'] %}
+          <span class="pill pill-quiet">essencial</span>
+          {% else %}
+          <form method="post" action="/settings/categories/{{ c.id }}/delete" onsubmit="return confirm('Apagar ou arquivar esta categoria?');">
+            <button class="icon-btn icon-btn-quiet icon-btn-danger" type="submit" aria-label="Apagar {{ c.name }}">{{ icon('trash', 15) }}</button>
+          </form>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="card form-section">
+      <div class="form-section-head">
+        <div>
+          <p class="eyebrow">Dados e privacidade</p>
+          <h2>O teu ficheiro, nas tuas mãos.</h2>
+        </div>
+        <span class="pill pill-green">{{ icon('lock', 13) }} local</span>
+      </div>
+      <div class="data-actions">
+        <a class="data-action" href="/backup">
+          <span class="icon-tile icon-tile-green">{{ icon('database', 17) }}</span>
+          <div><strong>Backup completo</strong><span>Base de dados + PDFs num zip</span></div>
+          {{ icon('download', 16) }}
+        </a>
+        <a class="data-action" href="/export/json">
+          <span class="icon-tile icon-tile-ochre">{{ icon('file-text', 17) }}</span>
+          <div><strong>Exportar JSON</strong><span>Todos os dados em texto</span></div>
+          {{ icon('download', 16) }}
+        </a>
+        <a class="data-action" href="/export/csv">
+          <span class="icon-tile icon-tile-sage">{{ icon('list', 17) }}</span>
+          <div><strong>Exportar CSV</strong><span>Movimentos para Excel</span></div>
+          {{ icon('download', 16) }}
+        </a>
+      </div>
+      <dl class="meta-list meta-list-inline">
+        <div><dt>Localização</dt><dd class="mono">{{ data_path }}</dd></div>
+        <div><dt>Tamanho da base</dt><dd>{{ (db_size / 1024)|round(1) }} KB</dd></div>
+        <div><dt>Movimentos</dt><dd>{{ counts.transactions }}</dd></div>
+        <div><dt>Recibos</dt><dd>{{ counts.payslips }}</dd></div>
+      </dl>
+      <p class="card-note">Não há sincronização, telemetria nem chamadas a serviços externos. Se apagares a pasta <code>data/</code>, apagas tudo. Faz backup antes.</p>
+    </section>
+
+    <section class="card form-section danger-zone">
+      <div class="form-section-head">
+        <div>
+          <p class="eyebrow">Zona de perigo</p>
+          <h2>Recomeçar do zero.</h2>
+        </div>
+        <span class="pill pill-terracotta">irreversível</span>
+      </div>
+      <p class="card-note">Apaga todos os recibos, movimentos, orçamentos, subscrições e objetivos. As contas, categorias e definições mantêm-se.</p>
+      <form method="post" action="/settings/reset" class="danger-form" onsubmit="return confirm('Tens a certeza? Esta ação não pode ser desfeita.');">
+        <label class="field">
+          <span class="field-label">Escreve APAGAR para confirmar</span>
+          <input type="text" name="confirm" placeholder="APAGAR" autocomplete="off">
+        </label>
+        <button class="btn btn-danger" type="submit">{{ icon('trash', 15) }} Apagar dados</button>
+      </form>
+    </section>
+  </div>
+
+  <aside class="settings-aside">
+    <article class="card side-card side-card-sage">
+      <span class="icon-tile icon-tile-light">{{ icon('sprout', 18) }}</span>
+      <h3>Finanças com raízes.</h3>
+      <p>O raiz foi desenhado para ser pequeno, local e teu. Sem contas, sem subscrições, sem pressão para gastar.</p>
+      <p class="version">versão 0.1 · localhost</p>
+    </article>
+    <article class="card side-card">
+      <p class="eyebrow">Atalhos</p>
+      <div class="shortcut-list">
+        <a href="/payslips/import">{{ icon('upload', 15) }} Importar recibo {{ icon('arrow-right', 13) }}</a>
+        <a href="/transactions">{{ icon('plus', 15) }} Adicionar movimento {{ icon('arrow-right', 13) }}</a>
+        <a href="/budget">{{ icon('layers', 15) }} Planear o mês {{ icon('arrow-right', 13) }}</a>
+        <a href="/backup">{{ icon('download', 15) }} Fazer backup {{ icon('arrow-right', 13) }}</a>
+      </div>
+    </article>
+  </aside>
+</div>
+
+<dialog class="modal" id="account-modal">
+  <div class="modal-head">
+    <div><p class="eyebrow">Nova conta</p><h2>Onde vive o dinheiro.</h2></div>
+    <button class="icon-btn" type="button" data-close-modal aria-label="Fechar">{{ icon('x', 18) }}</button>
+  </div>
+  <form method="post" action="/settings/accounts" class="form-grid">
+    <label class="field field-full"><span class="field-label">Nome <em>*</em></span><input type="text" name="name" placeholder="Ex.: conta principal" required></label>
+    <label class="field">
+      <span class="field-label">Tipo</span>
+      <select name="type">
+        <option value="checking">Conta à ordem</option>
+        <option value="savings">Poupança</option>
+        <option value="meal">Cartão refeição</option>
+        <option value="investment">Investimento</option>
+        <option value="cash">Dinheiro</option>
+        <option value="credit">Crédito</option>
+      </select>
+    </label>
+    <label class="field"><span class="field-label">Instituição</span><input type="text" name="institution" placeholder="Opcional"></label>
+    <label class="field"><span class="field-label">Saldo inicial</span><input type="text" name="opening_balance" inputmode="decimal" placeholder="0,00"></label>
+    <label class="field"><span class="field-label">Cor</span><input type="color" name="color" value="#2F5D46"></label>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" type="button" data-close-modal>Cancelar</button>
+      <button class="btn btn-primary" type="submit">{{ icon('check', 16) }} Criar conta</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="modal" id="category-modal">
+  <div class="modal-head">
+    <div><p class="eyebrow">Nova categoria</p><h2>Dá um nome a este gasto.</h2></div>
+    <button class="icon-btn" type="button" data-close-modal aria-label="Fechar">{{ icon('x', 18) }}</button>
+  </div>
+  <form method="post" action="/settings/categories" class="form-grid">
+    <label class="field field-full"><span class="field-label">Nome <em>*</em></span><input type="text" name="name" placeholder="Ex.: ginásio, educação, animais…" required></label>
+    <label class="field">
+      <span class="field-label">Grupo</span>
+      <select name="group_name">
+        <option value="essentials">Essenciais</option>
+        <option value="lifestyle">Estilo de vida</option>
+        <option value="future">Futuro</option>
+        <option value="other">Outros</option>
+      </select>
+    </label>
+    <label class="field">
+      <span class="field-label">Tipo</span>
+      <select name="kind">
+        <option value="expense">Gasto</option>
+        <option value="saving">Poupança</option>
+        <option value="investment">Investimento</option>
+      </select>
+    </label>
+    <label class="field">
+      <span class="field-label">Ícone</span>
+      <select name="icon">
+        <option value="more">Genérico</option>
+        <option value="home">Casa</option>
+        <option value="cart">Compras</option>
+        <option value="utensils">Comida</option>
+        <option value="car">Transporte</option>
+        <option value="heart">Saúde</option>
+        <option value="book">Educação</option>
+        <option value="sparkles">Lazer</option>
+        <option value="repeat">Subscrição</option>
+        <option value="shield">Proteção</option>
+        <option value="target">Objetivo</option>
+      </select>
+    </label>
+    <label class="field"><span class="field-label">Cor</span><input type="color" name="color" value="#8C7A5E"></label>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" type="button" data-close-modal>Cancelar</button>
+      <button class="btn btn-primary" type="submit">{{ icon('check', 16) }} Criar categoria</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

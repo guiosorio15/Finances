@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% from "macros/ui.html" import empty_state %}
+
+{% block document_title %}Subscrições{% endblock %}
+{% block eyebrow %}Compromissos{% endblock %}
+{% block page_title %}Subscrições{% endblock %}
+{% block header_actions %}
+  <button class="btn btn-primary" type="button" data-open-subscription>{{ icon('plus', 16) }} Nova subscrição</button>
+{% endblock %}
+
+{% block content %}
+<section class="summary-strip">
+  <div class="summary-item">
+    <span class="summary-label">Por mês</span>
+    <strong class="summary-value">{{ eur(subscriptions.monthly_total) }}</strong>
+    <span class="summary-note">valor normalizado</span>
+  </div>
+  <div class="summary-item">
+    <span class="summary-label">Por ano</span>
+    <strong class="summary-value">{{ eur(subscriptions.annual_total) }}</strong>
+    <span class="summary-note">se mantiveres tudo</span>
+  </div>
+  <div class="summary-item">
+    <span class="summary-label">Ativas</span>
+    <strong class="summary-value">{{ subscriptions.count }}</strong>
+    <span class="summary-note">cobranças recorrentes</span>
+  </div>
+  <div class="summary-item summary-item-total">
+    <span class="summary-label">Próxima</span>
+    <strong class="summary-value">{{ subscriptions.next.name if subscriptions.next else '—' }}</strong>
+    <span class="summary-note">{% if subscriptions.next %}{{ date_label(subscriptions.next.next_charge) }} · {{ eur(subscriptions.next.amount) }}{% else %}sem data marcada{% endif %}</span>
+  </div>
+</section>
+
+{% if subscriptions['items'] %}
+<section class="sub-grid">
+  {% for item in subscriptions['items'] %}
+  <article class="card sub-card">
+    <div class="sub-top">
+      <span class="icon-tile icon-tile-lg" style="--tile-color: {{ item.category_color or '#B65C4A' }}">{{ icon(item.category_icon or 'repeat', 19) }}</span>
+      <div class="sub-title">
+        <h3>{{ item.name }}</h3>
+        <p>{{ item.category_name or 'Subscrição' }}{% if item.account_name %} · {{ item.account_name }}{% endif %}</p>
+      </div>
+      <div class="sub-price">
+        <strong>{{ eur(item.amount) }}</strong>
+        <span>/ {{ cadence_label(item.cadence) }}</span>
+      </div>
+    </div>
+    <div class="sub-meta">
+      <span>≈ {{ eur(item.monthly) }} / mês</span>
+      <span>{% if item.days is none %}sem próxima data{% elif item.days < 0 %}<em class="is-overdue">em atraso {{ item.days|abs }} dias</em>{% elif item.days == 0 %}<em class="is-today">cobra hoje</em>{% elif item.days == 1 %}cobra amanhã{% else %}cobra em {{ item.days }} dias{% endif %}</span>
+    </div>
+    <div class="sub-foot">
+      <form method="post" action="/subscriptions/{{ item.id }}/pay" onsubmit="return confirm('Marcar {{ item.name }} como paga e criar o movimento?');">
+        <button class="btn btn-soft btn-sm" type="submit">{{ icon('check', 14) }} Marcar paga</button>
+      </form>
+      <div class="sub-actions">
+        <button class="icon-btn icon-btn-quiet" type="button" data-edit-subscription='{{ item|tojson }}' aria-label="Editar {{ item.name }}">{{ icon('edit', 15) }}</button>
+        <form method="post" action="/subscriptions/{{ item.id }}/delete" onsubmit="return confirm('Apagar esta subscrição?');">
+          <button class="icon-btn icon-btn-quiet icon-btn-danger" type="submit" aria-label="Apagar {{ item.name }}">{{ icon('trash', 15) }}</button>
+        </form>
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</section>
+{% else %}
+{{ empty_state('repeat', 'Ainda não há subscrições.', 'Vê o extrato dos últimos três meses e procura cobranças repetidas. Regista aqui o que encontraste — e decide se ainda queres pagar.', None, None, 'terracotta') }}
+<div class="empty-action"><button class="btn btn-primary" type="button" data-open-subscription>{{ icon('plus', 16) }} Adicionar subscrição</button></div>
+{% endif %}
+
+<section class="card sub-audit">
+  <span class="icon-tile icon-tile-sage">{{ icon('search', 18) }}</span>
+  <div>
+    <h3>Uma auditoria de 10 minutos.</h3>
+    <p>Lista as subscrições, pergunta “usei isto no último mês?” e cancela uma. Repete a cada trimestre. O objetivo não é cortar tudo — é pagar só pelo que usas.</p>
+  </div>
+</section>
+
+<dialog class="modal" id="subscription-modal">
+  <div class="modal-head">
+    <div>
+      <p class="eyebrow" data-modal-eyebrow>Nova subscrição</p>
+      <h2 data-modal-title>Adicionar subscrição</h2>
+    </div>
+    <button class="icon-btn" type="button" data-close-modal aria-label="Fechar">{{ icon('x', 18) }}</button>
+  </div>
+  <form method="post" action="/subscriptions" id="subscription-form" class="form-grid">
+    <label class="field field-full">
+      <span class="field-label">Nome <em>*</em></span>
+      <input type="text" name="name" id="sub-name" placeholder="Ex.: Spotify, ginásio, cloud…" required>
+    </label>
+    <label class="field">
+      <span class="field-label">Valor <em>*</em></span>
+      <input type="text" name="amount" id="sub-amount" inputmode="decimal" placeholder="0,00" required>
+    </label>
+    <label class="field">
+      <span class="field-label">Periodicidade</span>
+      <select name="cadence" id="sub-cadence">
+        <option value="monthly">Mensal</option>
+        <option value="yearly">Anual</option>
+        <option value="quarterly">Trimestral</option>
+        <option value="weekly">Semanal</option>
+      </select>
+    </label>
+    <label class="field">
+      <span class="field-label">Próxima cobrança</span>
+      <input type="date" name="next_charge" id="sub-next" value="{{ today_value }}">
+    </label>
+    <label class="field">
+      <span class="field-label">Categoria</span>
+      <select name="category_id" id="sub-category">
+        {% for c in categories %}
+        <option value="{{ c.id }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="field">
+      <span class="field-label">Conta</span>
+      <select name="account_id" id="sub-account">
+        {% for a in accounts %}
+        <option value="{{ a.id }}">{{ a.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="field">
+      <span class="field-label">Link para cancelar</span>
+      <input type="url" name="url" id="sub-url" placeholder="https://…">
+    </label>
+    <label class="field field-full">
+      <span class="field-label">Notas</span>
+      <input type="text" name="notes" id="sub-notes" placeholder="Opcional">
+    </label>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" type="button" data-close-modal>Cancelar</button>
+      <button class="btn btn-primary" type="submit">{{ icon('check', 16) }} Guardar</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

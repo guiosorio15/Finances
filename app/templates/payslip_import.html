@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+
+{% block document_title %}Importar recibo{% endblock %}
+{% block eyebrow %}Rendimento{% endblock %}
+{% block page_title %}Importar recibo{% endblock %}
+{% block header_actions %}
+  <a class="btn btn-ghost" href="/payslips">{{ icon('chevron-left', 15) }} Voltar aos recibos</a>
+{% endblock %}
+
+{% block content %}
+<div class="import-layout">
+  <section class="card upload-card">
+    <div class="upload-copy">
+      <p class="eyebrow">PDF do recibo de vencimento</p>
+      <h2>Arrasta o recibo para aqui.</h2>
+      <p>Vamos ler os valores automaticamente. Tu revês tudo antes de guardar — e podes corrigir qualquer campo.</p>
+    </div>
+
+    <form method="post" action="/payslips/import" enctype="multipart/form-data" class="upload-form" id="upload-form">
+      <label class="dropzone" for="payslip-file" data-dropzone tabindex="0" role="button" aria-label="Escolher recibo de vencimento em PDF">
+        <span class="dropzone-icon">{{ icon('upload', 26) }}</span>
+        <span class="dropzone-title">Escolhe um PDF ou arrasta para aqui</span>
+        <span class="dropzone-hint">Máximo 15 MB · PDF com texto selecionável</span>
+        <span class="dropzone-file" data-file-name></span>
+        <input type="file" name="file" id="payslip-file" accept="application/pdf,.pdf" required>
+      </label>
+      <button class="btn btn-primary btn-full" type="submit" data-upload-submit disabled>
+        {{ icon('sparkles', 16) }} Ler recibo
+      </button>
+    </form>
+
+    <div class="upload-notes">
+      <div><span>{{ icon('shield', 16) }}</span><p>O PDF fica no teu disco. Nada é enviado para fora.</p></div>
+      <div><span>{{ icon('file-text', 16) }}</span><p>Se o PDF for uma fotografia digitalizada, não conseguimos ler o texto. Nesse caso, pede a versão digital à entidade empregadora.</p></div>
+    </div>
+  </section>
+
+  <aside class="import-aside">
+    <article class="card side-card">
+      <p class="eyebrow">O que vai acontecer</p>
+      <ol class="step-list">
+        <li><span>01</span><div><strong>Leitura</strong><p>Identificamos o mês, o empregador, as remunerações e os descontos.</p></div></li>
+        <li><span>02</span><div><strong>Revisão</strong><p>Vês os valores e a confiança da leitura. Corriges o que for preciso.</p></div></li>
+        <li><span>03</span><div><strong>Confirmação</strong><p>Criamos dois movimentos: líquido em conta e cartão refeição.</p></div></li>
+      </ol>
+    </article>
+    <article class="card side-card side-card-ochre">
+      <span class="icon-tile icon-tile-light">{{ icon('utensils', 18) }}</span>
+      <h3>O cartão refeição não é salário.</h3>
+      <p>É dinheiro teu, mas com destino. O raiz separa-o do cash para não te dar uma falsa sensação de folga.</p>
+    </article>
+  </aside>
+</div>
+{% endblock %}

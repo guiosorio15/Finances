@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% from "macros/ui.html" import month_switcher, money, progress, ring, empty_state %}
+
+{% block document_title %}Visão geral{% endblock %}
+{% block eyebrow %}Visão geral{% endblock %}
+{% block page_title %}{{ greeting }}, {{ profile_name }}.{% endblock %}
+{% block header_actions %}
+  {{ month_switcher(selected_month, prev_month, next_month, month_title) }}
+  <a class="btn btn-primary" href="/payslips/import">{{ icon('upload', 16) }} Importar recibo</a>
+{% endblock %}
+
+{% block content %}
+{% if not is_current %}
+<div class="month-banner">
+  <span>{{ icon('calendar', 15) }} A mostrar {{ month_title }}. O mês corrente é {{ month_display(current_month_value) }}.</span>
+  <a href="/?month={{ current_month_value }}">Ir para {{ month_display(current_month_value) }} {{ icon('arrow-right', 13) }}</a>
+</div>
+{% endif %}
+{% if not summary.income and not payslip %}
+<section class="welcome-card">
+  <div class="welcome-copy">
+    <p class="eyebrow">Primeiro passo</p>
+    <h2>O teu dinheiro, com raízes.</h2>
+    <p>Importa o recibo de vencimento e o raiz preenche o rendimento, os descontos e o cartão refeição. Depois é só dar destino ao que sobra.</p>
+    <div class="welcome-actions">
+      <a class="btn btn-primary" href="/payslips/import">{{ icon('upload', 16) }} Importar recibo</a>
+      <a class="btn btn-ghost" href="/transactions">{{ icon('plus', 16) }} Adicionar movimento</a>
+    </div>
+  </div>
+  <div class="welcome-steps">
+    <div class="welcome-step"><span>01</span><div><strong>Importa</strong><p>O recibo vira rendimento e descontos.</p></div></div>
+    <div class="welcome-step"><span>02</span><div><strong>Atribui</strong><p>Dá um nome a cada euro do mês.</p></div></div>
+    <div class="welcome-step"><span>03</span><div><strong>Observa</strong><p>No fim do mês, vê o que mudou.</p></div></div>
+  </div>
+</section>
+{% endif %}
+
+<section class="dashboard-grid">
+  <article class="card hero-card span-5">
+    <div class="hero-orbit" aria-hidden="true">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="hero-top">
+      <span class="pill pill-light">{{ month_title }}</span>
+      {% if payslip %}
+      <span class="hero-status">{{ icon('circle-check', 14) }} recibo confirmado</span>
+      {% else %}
+      <span class="hero-status hero-status-muted">{{ icon('clock', 14) }} à espera do recibo</span>
+      {% endif %}
+    </div>
+
+    {% if summary.income %}
+    <p class="hero-label">Entrou este mês</p>
+    <p class="hero-amount">{{ eur(summary.income) }}</p>
+    <p class="hero-sub">{{ eur(summary.income_cash) }} em conta <span class="hero-plus">+</span> {{ eur(summary.income_meal) }} no cartão refeição</p>
+
+    {% if payslip and payslip.gross_total %}
+    <div class="wage-bar" role="img" aria-label="Do bruto ao líquido">
+      {% set gross = payslip.gross_taxable + (payslip.net_meal or payslip.meal_allowance) %}
+      <span class="wage-seg wage-net" style="width: {{ (payslip.net_cash / gross * 100)|round(1) }}%" title="Líquido em conta"></span>
+      <span class="wage-seg wage-irs" style="width: {{ (payslip.irs_amount / gross * 100)|round(1) }}%" title="IRS"></span>
+      <span class="wage-seg wage-ss" style="width: {{ (payslip.ss_amount / gross * 100)|round(1) }}%" title="Segurança Social"></span>
+      <span class="wage-seg wage-meal" style="width: {{ (payslip.net_meal / gross * 100)|round(1) }}%" title="Cartão refeição"></span>
+    </div>
+    <div class="wage-legend">
+      <span><i class="dot dot-net"></i>conta {{ eur(payslip.net_cash, 0) }}</span>
+      <span><i class="dot dot-irs"></i>IRS {{ eur(payslip.irs_amount, 0) }}</span>
+      <span><i class="dot dot-ss"></i>SS {{ eur(payslip.ss_amount, 0) }}</span>
+      <span><i class="dot dot-meal"></i>refeição {{ eur(payslip.net_meal, 0) }}</span>
+    </div>
+    {% endif %}
+
+    <div class="hero-foot">
+      {% if payslip %}
+      <a class="hero-link" href="/payslips/{{ payslip.id }}">Ver recibo {{ icon('arrow-up-right', 14) }}</a>
+      <span class="hero-rate">{{ payslip.net_rate|round|int }}% do bruto ficou para ti</span>
+      {% else %}
+      <a class="hero-link" href="/payslips/import">Importar recibo {{ icon('arrow-up-right', 14) }}</a>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="hero-label">Este mês</p>
+    <p class="hero-amount hero-amount-muted">—</p>
+    <p class="hero-sub">Ainda não há rendimento registado em {{ month_title|lower }}.</p>
+    <div class="hero-foot">
+      <a class="hero-link" href="/payslips/import">Importar recibo {{ icon('arrow-up-right', 14) }}</a>
+    </div>
+    {% endif %}
+  </article>
+
+  <div class="span-7 stat-grid">
+    <article class="card stat-card">
+      <div class="stat-head">
+        <span class="icon-tile icon-tile-green">{{ icon('banknote', 18) }}</span>
+        <span class="stat-label">Rendimento</span>
+      </div>
+      <p class="stat-value">{{ eur(summary.income) }}</p>
+      <p class="stat-hint">{{ summary.transaction_count }} movimento{% if summary.transaction_count != 1 %}s{% endif %} este mês</p>
+    </article>
+
+    <article class="card stat-card">
+      <div class="stat-head">
+        <span class="icon-tile icon-tile-terracotta">{{ icon('cart', 18) }}</span>
+        <span class="stat-label">Despesas</span>
+      </div>
+      <p class="stat-value">{{ eur(summary.expenses) }}</p>
+      <p class="stat-hint">{{ summary.expense_rate|round|int }}% do rendimento</p>
+      {{ progress(summary.expense_rate, "#B65C4A", true, "Percentagem do rendimento gasta") }}
+    </article>
+
+    <article class="card stat-card stat-card-future">
+      <div class="stat-head">
+        <span class="icon-tile icon-tile-sage">{{ icon('sprout', 18) }}</span>
+        <span class="stat-label">Para o futuro</span>
+      </div>
+      <p class="stat-value">{{ eur(summary.future) }}</p>
+      <p class="stat-hint">taxa de poupança {{ summary.savings_rate|round|int }}% <span class="stat-target">meta 20%</span></p>
+      {{ progress(summary.savings_rate, "#7E9B7A", true, "Taxa de poupança") }}
+    </article>
+
+    <article class="card stat-card {% if summary.budget_unassigned < 0 %}stat-card-warn{% endif %}">
+      <div class="stat-head">
+        <span class="icon-tile icon-tile-ochre">{{ icon('layers', 18) }}</span>
+        <span class="stat-label">Por atribuir</span>
+      </div>
+      <p class="stat-value">{{ eur(summary.budget_unassigned) }}</p>
+      <p class="stat-hint">{% if summary.budget_planned %}de {{ eur(summary.budget_planned) }} já atribuídos{% else %}sem orçamento definido{% endif %}</p>
+      <a class="text-link" href="/budget?month={{ selected_month }}">Planear o mês {{ icon('arrow-right', 13) }}</a>
+    </article>
+  </div>
+
+  <article class="card span-7 chart-card">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">Últimos 6 meses</p>
+        <h2 class="card-title">Fluxo de caixa</h2>
+      </div>
+      <a class="text-link" href="/transactions?month={{ selected_month }}">Ver movimentos {{ icon('arrow-right', 13) }}</a>
+    </div>
+    {% if cashflow.has_data %}
+    <div class="bar-chart">
+      <div class="bar-chart-y">
+        <span>{{ eur_compact(cashflow.max) }}</span>
+        <span>{{ eur_compact(cashflow.max / 2) }}</span>
+        <span>0</span>
+      </div>
+      <div class="bar-chart-bars">
+        {% for item in cashflow.series %}
+        <div class="bar-group {% if item.month == selected_month %}is-selected{% endif %}">
+          <div class="bar-pair">
+            <div class="bar bar-income" style="height: {{ ([item.income_pct, 2]|max) if item.income else 0 }}%" title="Entradas: {{ eur(item.income) }}"></div>
+            <div class="bar bar-expense" style="height: {{ ([item.expense_pct, 2]|max) if item.expenses else 0 }}%" title="Saídas: {{ eur(item.expenses) }}"></div>
+          </div>
+          <span class="bar-label">{{ item.label }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="chart-legend">
+      <span><i class="dot dot-income"></i>entradas</span>
+      <span><i class="dot dot-expense"></i>saídas</span>
+      <span class="chart-note">despesas excluem poupança e investimento</span>
+    </div>
+    {% else %}
+    {{ empty_state('pie-chart', 'O histórico começa aqui.', 'Importa os próximos recibos e adiciona as despesas do mês para veres a evolução.', '/transactions', 'Adicionar movimento') }}
+    {% endif %}
+  </article>
+
+  <article class="card span-5 allocation-card">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">Regra de alocação</p>
+        <h2 class="card-title">{{ allocation.essentials }} / {{ allocation.lifestyle }} / {{ allocation.future }}</h2>
+      </div>
+      <a class="icon-btn icon-btn-quiet" href="/settings" aria-label="Editar alocação">{{ icon('settings', 16) }}</a>
+    </div>
+    <div class="allocation-bar">
+      <span class="alloc-essentials" style="width: {{ allocation.essentials }}%"></span>
+      <span class="alloc-lifestyle" style="width: {{ allocation.lifestyle }}%"></span>
+      <span class="alloc-future" style="width: {{ allocation.future }}%"></span>
+    </div>
+    <div class="allocation-list">
+      <div class="allocation-row">
+        <span class="alloc-dot alloc-dot-essentials"></span>
+        <div><strong>Essenciais</strong><span>{{ allocation.essentials }}% do rendimento</span></div>
+        <span class="allocation-value">{{ eur(allocation_amounts.essentials) }}</span>
+      </div>
+      <div class="allocation-row">
+        <span class="alloc-dot alloc-dot-lifestyle"></span>
+        <div><strong>Estilo de vida</strong><span>{{ allocation.lifestyle }}% do rendimento</span></div>
+        <span class="allocation-value">{{ eur(allocation_amounts.lifestyle) }}</span>
+      </div>
+      <div class="allocation-row">
+        <span class="alloc-dot alloc-dot-future"></span>
+        <div><strong>Futuro</strong><span>{{ allocation.future }}% do rendimento</span></div>
+        <span class="allocation-value">{{ eur(allocation_amounts.future) }}</span>
+      </div>
+    </div>
+    <p class="card-note">Sugestão inicial. Ajusta quando souberes o teu custo de vida real.</p>
+    <a class="text-link" href="/budget?month={{ selected_month }}">Distribuir este mês {{ icon('arrow-right', 13) }}</a>
+  </article>
+
+  <article class="card span-5 payments-card">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">Compromissos</p>
+        <h2 class="card-title">Próximos pagamentos</h2>
+      </div>
+      <a class="text-link" href="/subscriptions">Ver todas {{ icon('arrow-right', 13) }}</a>
+    </div>
+    {% if subscriptions['items'] %}
+    <div class="payment-list">
+      {% for item in subscriptions['items'][:4] %}
+      <a class="payment-row" href="/subscriptions">
+        <span class="icon-tile" style="--tile-color: {{ item.category_color or '#B65C4A' }}">{{ icon(item.category_icon or 'repeat', 17) }}</span>
+        <span class="payment-copy">
+          <strong>{{ item.name }}</strong>
+          <span>{% if item.days is none %}sem data{% elif item.days < 0 %}em atraso{% elif item.days == 0 %}hoje{% elif item.days == 1 %}amanhã{% else %}em {{ item.days }} dias{% endif %}</span>
+        </span>
+        <span class="payment-amount">{{ eur(item.amount) }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    <div class="card-footline">
+      <span>{{ eur(subscriptions.monthly_total) }} por mês</span>
+      <span>{{ eur(subscriptions.annual_total) }} por ano</span>
+    </div>
+    {% else %}
+    {{ empty_state('repeat', 'Sem subscrições registadas.', 'Vê o extrato e procura cobranças repetidas. Uma subscrição esquecida é dinheiro a sair sozinho.', '/subscriptions', 'Adicionar subscrição', 'terracotta') }}
+    {% endif %}
+  </article>
+
+  <article class="card span-7">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">O teu mês</p>
+        <h2 class="card-title">Movimentos recentes</h2>
+      </div>
+      <a class="text-link" href="/transactions?month={{ selected_month }}">Ver todos {{ icon('arrow-right', 13) }}</a>
+    </div>
+    {% if transactions %}
+    <div class="movement-list">
+      {% for t in transactions %}
+      <div class="movement-row">
+        <span class="icon-tile" style="--tile-color: {{ t.category_color or '#8C7A5E' }}">{{ icon(t.category_icon or 'more', 17) }}</span>
+        <div class="movement-copy">
+          <strong>{{ t.description }}</strong>
+          <span>{{ date_label(t.date) }} · {{ t.category_name or 'Sem categoria' }}{% if t.account_name %} · {{ t.account_name }}{% endif %}</span>
+        </div>
+        <span class="movement-amount {% if t.amount > 0 %}is-income{% endif %}">{{ eur(t.amount, 2, true) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    {{ empty_state('arrow-left-right', 'Ainda sem movimentos.', 'Adiciona as despesas fixas primeiro: casa, contas, supermercado. O resto aparece por acréscimo.', '/transactions', 'Adicionar movimento') }}
+    {% endif %}
+  </article>
+
+  <article class="card span-12 category-card">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">Análise</p>
+        <h2 class="card-title">Para onde foi o dinheiro</h2>
+      </div>
+      <a class="text-link" href="/transactions?month={{ selected_month }}&type=expense">Ver gastos {{ icon('arrow-right', 13) }}</a>
+    </div>
+    {% if category_totals %}
+    <div class="category-analysis">
+      <div class="donut" role="img" style="background: {{ category_gradient }}" aria-label="Distribuição das despesas por categoria">
+        <div class="donut-hole">
+          <span>Total gasto</span>
+          <strong>{{ eur(summary.expenses) }}</strong>
+        </div>
+      </div>
+      <div class="category-list">
+        {% for cat in category_totals[:8] %}
+        <div class="category-row">
+          <span class="category-swatch" style="background: {{ cat.color }}"></span>
+          <div class="category-copy">
+            <strong>{{ cat.name }}</strong>
+            <span>{{ cat.share|round|int }}%</span>
+          </div>
+          <span class="category-amount">{{ eur(cat.total) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <p class="card-note category-note">Só despesas. Poupança e investimento contam como futuro, não como gasto.</p>
+    {% else %}
+    {{ empty_state('pie-chart', 'Ainda não há despesas este mês.', 'Quando adicionares os gastos, vês aqui a distribuição por categoria — e percebes onde cortar sem adivinhar.', '/transactions', 'Adicionar movimento') }}
+    {% endif %}
+  </article>
+
+  <article class="card span-5 goals-card">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">Poupança com nome</p>
+        <h2 class="card-title">Objetivos</h2>
+      </div>
+      <a class="text-link" href="/goals">Gerir {{ icon('arrow-right', 13) }}</a>
+    </div>
+    {% if goals['items'] %}
+    <div class="goal-mini-list">
+      {% for goal in goals['items'][:2] %}
+      <div class="goal-mini">
+        {{ ring(goal.progress, 56, goal.color or '#2F5D46') }}
+        <div class="goal-mini-copy">
+          <strong>{{ goal.name }}</strong>
+          <span>{{ eur(goal.current, 0) }} de {{ eur(goal.target, 0) }}</span>
+          {% if goal.projected %}<span class="goal-projection">chegada em {{ goal.projected }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="card-footline">
+      <span>{{ eur(goals.total_current) }} guardados</span>
+      <span>{{ goals.progress|round|int }}% do total</span>
+    </div>
+    {% else %}
+    {{ empty_state('target', 'Dá um nome ao próximo passo.', 'Um fundo de emergência de 3 a 6 meses é a base. Depois, investir fica muito mais tranquilo.', '/goals', 'Criar objetivo', 'sage') }}
+    {% endif %}
+  </article>
+
+  <article class="card span-7 insights-card">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">Sem ruído</p>
+        <h2 class="card-title">Um olhar sobre o mês</h2>
+      </div>
+      <span class="pill">{{ month_title }}</span>
+    </div>
+    <div class="insight-grid">
+      {% for insight in insights %}
+      <div class="insight insight-{{ insight.tone }}">
+        <span class="icon-tile insight-icon">{{ icon(insight.icon, 18) }}</span>
+        <div>
+          <span class="insight-tag">{{ insight.tag }}</span>
+          <h3>{{ insight.title }}</h3>
+          <p>{{ insight.body }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+{% endblock %}

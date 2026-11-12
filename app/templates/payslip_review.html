@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+
+{% block document_title %}Rever recibo{% endblock %}
+{% block eyebrow %}Rendimento{% endblock %}
+{% block page_title %}Rever recibo{% endblock %}
+{% block header_actions %}
+  <a class="btn btn-ghost" href="/payslips">{{ icon('chevron-left', 15) }} Voltar</a>
+{% endblock %}
+
+{% macro money_input(label, name, value, required=false, hint="") -%}
+<label class="field">
+  <span class="field-label">{{ label }}{% if required %} <em>*</em>{% endif %}</span>
+  <span class="input-with-suffix">
+    <input type="text" inputmode="decimal" name="{{ name }}" value="{{ '%.2f'|format(value or 0)|replace('.', ',') }}" data-review-money="{{ name }}" {% if required %}required{% endif %}>
+    <span>€</span>
+  </span>
+  {% if hint %}<span class="field-hint">{{ hint }}</span>{% endif %}
+</label>
+{%- endmacro %}
+
+{% macro percent_input(label, name, value) -%}
+<label class="field">
+  <span class="field-label">{{ label }}</span>
+  <span class="input-with-suffix">
+    <input type="text" inputmode="decimal" name="{{ name }}" value="{{ '%.2f'|format(value or 0)|replace('.', ',') }}" data-review-money="{{ name }}">
+    <span>%</span>
+  </span>
+</label>
+{%- endmacro %}
+
+{% macro number_input(label, name, value, suffix="", hint="") -%}
+<label class="field">
+  <span class="field-label">{{ label }}</span>
+  <span class="input-with-suffix">
+    <input type="text" inputmode="decimal" name="{{ name }}" value="{{ '%.2f'|format(value or 0)|replace('.', ',') }}" data-review-money="{{ name }}">
+    {% if suffix %}<span>{{ suffix }}</span>{% endif %}
+  </span>
+  {% if hint %}<span class="field-hint">{{ hint }}</span>{% endif %}
+</label>
+{%- endmacro %}
+
+{% block content %}
+<div class="review-layout" data-payslip-review>
+  <form method="post" action="/payslips/import/{{ import_id }}" id="review-form" class="review-form">
+    {% if duplicate %}
+    <div class="callout callout-error">
+      <span class="callout-icon">{{ icon('alert', 18) }}</span>
+      <div>
+        <strong>Já existe um recibo para {{ month_display(fields.month) }}.</strong>
+        <p>Para substituir, apaga primeiro o recibo antigo em <a href="/payslips/{{ duplicate.id }}">Recibos</a>. Assim evitas duplicar o rendimento.</p>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="confidence-bar {% if confidence >= 0.85 %}is-high{% elif confidence >= 0.6 %}is-mid{% else %}is-low{% endif %}">
+      <span class="confidence-icon">{{ icon('sparkles', 18) }}</span>
+      <div>
+        <strong>Leitura automática: {{ (confidence * 100)|round|int }}% confiante</strong>
+        <p>Confirma os valores. O recibo só entra no orçamento depois de guardares.</p>
+      </div>
+      <span class="confidence-pill">{{ (confidence * 100)|round|int }}%</span>
+    </div>
+
+    {% if warnings %}
+    <div class="callout callout-warn">
+      <span class="callout-icon">{{ icon('alert', 18) }}</span>
+      <div>
+        <strong>Vale a pena verificar:</strong>
+        <ul>{% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+      </div>
+    </div>
+    {% endif %}
+
+    <section class="card form-section">
+      <div class="form-section-head">
+        <div>
+          <p class="eyebrow">01 · Identificação</p>
+          <h2>Quem, quando, onde.</h2>
+        </div>
+        <span class="pill">{{ fields.month or 'mês por preencher' }}</span>
+      </div>
+      <div class="form-grid">
+        <label class="field">
+          <span class="field-label">Mês <em>*</em></span>
+          <input type="month" name="month" value="{{ fields.month or '' }}" required>
+        </label>
+        <label class="field">
+          <span class="field-label">Data de pagamento</span>
+          <input type="date" name="pay_date" value="{{ fields.pay_date or '' }}">
+        </label>
+        <label class="field field-full">
+          <span class="field-label">Empregador</span>
+          <input type="text" name="employer" value="{{ fields.employer or '' }}" placeholder="Nome da empresa">
+        </label>
+        <label class="field field-full">
+          <span class="field-label">Nome do colaborador</span>
+          <input type="text" name="employee_name" value="{{ fields.employee_name or '' }}">
+        </label>
+        <label class="field">
+          <span class="field-label">Categoria profissional</span>
+          <input type="text" name="professional_category" value="{{ fields.professional_category or '' }}">
+        </label>
+        <label class="field">
+          <span class="field-label">Local de trabalho</span>
+          <input type="text" name="work_location" value="{{ fields.work_location or '' }}">
+        </label>
+      </div>
+    </section>
+
+    <section class="card form-section">
+      <div class="form-section-head">
+        <div>
+          <p class="eyebrow">02 · Remunerações</p>
+          <h2>O que recebeste.</h2>
+        </div>
+        <span class="pill pill-ochre">bruto</span>
+      </div>
+      <div class="form-grid">
+        {{ money_input('Ordenado base', 'base_salary', fields.base_salary, true) }}
+        {{ money_input('Subsídio de Natal', 'christmas_subsidy', fields.christmas_subsidy) }}
+        {{ money_input('Subsídio de Férias', 'holiday_subsidy', fields.holiday_subsidy) }}
+        {{ money_input('Outras remunerações', 'other_earnings', fields.other_earnings) }}
+        {{ number_input('Dias de refeição', 'meal_days', fields.meal_days, 'dias', 'Dias com subsídio de alimentação') }}
+        {{ money_input('Valor diário do cartão', 'meal_daily', fields.meal_daily) }}
+        {{ money_input('Total do cartão refeição', 'meal_allowance', fields.meal_allowance, false, 'Isento de IRS e Segurança Social') }}
+        {{ money_input('Total sujeito a IRS', 'gross_taxable', fields.gross_taxable) }}
+      </div>
+    </section>
+
+    <section class="card form-section">
+      <div class="form-section-head">
+        <div>
+          <p class="eyebrow">03 · Descontos</p>
+          <h2>O que ficou pelo caminho.</h2>
+        </div>
+        <span class="pill pill-terracotta">descontos</span>
+      </div>
+      <div class="form-grid">
+        {{ percent_input('Taxa de IRS', 'irs_rate', fields.irs_rate) }}
+        {{ money_input('IRS retido', 'irs_amount', fields.irs_amount) }}
+        {{ percent_input('Taxa de Segurança Social', 'ss_rate', fields.ss_rate) }}
+        {{ money_input('Segurança Social', 'ss_amount', fields.ss_amount) }}
+        {{ money_input('Outros descontos', 'other_deductions', fields.other_deductions) }}
+        {{ money_input('Total de descontos', 'total_deductions', fields.total_deductions) }}
+      </div>
+    </section>
+
+    <section class="card form-section">
+      <div class="form-section-head">
+        <div>
+          <p class="eyebrow">04 · Líquido</p>
+          <h2>O que chegou à conta.</h2>
+        </div>
+        <span class="pill pill-green">líquido</span>
+      </div>
+      <div class="form-grid">
+        {{ money_input('Líquido em conta', 'net_cash', fields.net_cash) }}
+        {{ money_input('Cartão refeição', 'net_meal', fields.net_meal) }}
+        {{ money_input('Total recebido', 'total_net', fields.total_net) }}
+      </div>
+    </section>
+
+    <details class="card form-section form-details">
+      <summary>
+        <span>
+          <span class="eyebrow">Detalhes e segurança</span>
+          <strong>NIF, Segurança Social, IBAN e acumulados</strong>
+        </span>
+        {{ icon('chevron-down', 18) }}
+      </summary>
+      <div class="form-grid">
+        <label class="field">
+          <span class="field-label">NIF</span>
+          <input type="text" name="employee_nif" value="{{ fields.employee_nif or '' }}">
+        </label>
+        <label class="field">
+          <span class="field-label">Nº Segurança Social</span>
+          <input type="text" name="employee_ss" value="{{ fields.employee_ss or '' }}">
+        </label>
+        <label class="field">
+          <span class="field-label">Nº colaborador</span>
+          <input type="text" name="employee_number" value="{{ fields.employee_number or '' }}">
+        </label>
+        <label class="field">
+          <span class="field-label">IBAN</span>
+          <input type="text" name="iban" value="{{ fields.iban or '' }}">
+        </label>
+        {{ money_input('Vencimento acumulado', 'accumulated_pay', fields.accumulated_pay) }}
+        {{ money_input('IRS acumulado', 'accumulated_irs', fields.accumulated_irs) }}
+        {{ number_input('Faltas justificadas', 'absence_hours', fields.absence_hours, 'h') }}
+      </div>
+    </details>
+
+    <div class="review-actions">
+      <button class="btn btn-ghost" type="submit" formaction="/payslips/import/{{ import_id }}/cancel" formmethod="post" formnovalidate>{{ icon('x', 15) }} Cancelar importação</button>
+      <button class="btn btn-primary" type="submit">{{ icon('check', 16) }} Confirmar e lançar</button>
+    </div>
+  </form>
+
+  <aside class="review-aside">
+    <div class="card review-summary">
+      <p class="eyebrow">Resumo</p>
+      <h2 class="card-title">Do bruto ao teu bolso.</h2>
+      <div class="review-total">
+        <span>Total recebido</span>
+        <strong data-summary="total">{{ eur(fields.total_net) }}</strong>
+      </div>
+      <div class="wage-bar wage-bar-review" aria-hidden="true">
+        <span class="wage-seg wage-net" data-bar="net" style="width: {{ ((fields.net_cash / (fields.gross_taxable + fields.meal_allowance)) * 100)|round(1) if (fields.gross_taxable + fields.meal_allowance) else 0 }}%"></span>
+        <span class="wage-seg wage-irs" data-bar="irs" style="width: {{ ((fields.irs_amount / (fields.gross_taxable + fields.meal_allowance)) * 100)|round(1) if (fields.gross_taxable + fields.meal_allowance) else 0 }}%"></span>
+        <span class="wage-seg wage-ss" data-bar="ss" style="width: {{ ((fields.ss_amount / (fields.gross_taxable + fields.meal_allowance)) * 100)|round(1) if (fields.gross_taxable + fields.meal_allowance) else 0 }}%"></span>
+        <span class="wage-seg wage-meal" data-bar="meal" style="width: {{ ((fields.net_meal / (fields.gross_taxable + fields.meal_allowance)) * 100)|round(1) if (fields.gross_taxable + fields.meal_allowance) else 0 }}%"></span>
+      </div>
+      <dl class="summary-dl">
+        <div><dt>Bruto tributável</dt><dd data-summary="gross-taxable">{{ eur(fields.gross_taxable) }}</dd></div>
+        <div><dt>IRS</dt><dd data-summary="irs">{{ eur(fields.irs_amount) }}</dd></div>
+        <div><dt>Segurança Social</dt><dd data-summary="ss">{{ eur(fields.ss_amount) }}</dd></div>
+        <div class="is-strong"><dt>Líquido em conta</dt><dd data-summary="net-cash">{{ eur(fields.net_cash) }}</dd></div>
+        <div><dt>Cartão refeição</dt><dd data-summary="meal">{{ eur(fields.net_meal) }}</dd></div>
+        <div class="is-strong"><dt>Total recebido</dt><dd data-summary="total-2">{{ eur(fields.total_net) }}</dd></div>
+        <div><dt>Taxa efetiva de desconto</dt><dd data-summary="rate">{{ pct_pt((fields.total_deductions / fields.gross_taxable) * 100, 1) if fields.gross_taxable else 0 }}%</dd></div>
+      </dl>
+      <button class="btn btn-primary btn-full" type="submit" form="review-form">{{ icon('check', 16) }} Confirmar e lançar</button>
+      <p class="card-note card-note-small">Vão ser criados dois movimentos: líquido em conta e cartão refeição.</p>
+    </div>
+
+    <details class="card review-raw">
+      <summary>Texto lido do PDF {{ icon('chevron-down', 15) }}</summary>
+      <pre>{{ raw_excerpt }}</pre>
+    </details>
+  </aside>
+</div>
+{% endblock %}

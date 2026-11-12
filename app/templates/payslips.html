@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% from "macros/ui.html" import empty_state %}
+
+{% block document_title %}Recibos{% endblock %}
+{% block eyebrow %}Rendimento{% endblock %}
+{% block page_title %}Recibos{% endblock %}
+{% block header_actions %}
+  <a class="btn btn-primary" href="/payslips/import">{{ icon('upload', 16) }} Importar recibo</a>
+{% endblock %}
+
+{% block content %}
+<section class="summary-strip">
+  <div class="summary-item">
+    <span class="summary-label">Último líquido</span>
+    <strong class="summary-value">{{ eur(latest.total_net) if latest else eur(0) }}</strong>
+    <span class="summary-note">{{ month_display(latest.month) if latest else 'sem recibos' }}</span>
+  </div>
+  <div class="summary-item">
+    <span class="summary-label">Líquido no ano</span>
+    <strong class="summary-value">{{ eur(ytd_net) }}</strong>
+    <span class="summary-note">conta + cartão refeição</span>
+  </div>
+  <div class="summary-item">
+    <span class="summary-label">IRS + Segurança Social</span>
+    <strong class="summary-value">{{ eur(ytd_irs + ytd_ss) }}</strong>
+    <span class="summary-note">retido em {{ today_value[:4] }}</span>
+  </div>
+  <div class="summary-item">
+    <span class="summary-label">Cartão refeição</span>
+    <strong class="summary-value">{{ eur(ytd_meal) }}</strong>
+    <span class="summary-note">isento de descontos</span>
+  </div>
+</section>
+
+<div class="payslip-layout">
+  <section class="payslip-list">
+    <div class="card-head card-head-outside">
+      <div>
+        <p class="eyebrow">Histórico</p>
+        <h2 class="card-title">Os teus recibos</h2>
+      </div>
+      <span class="pill">{{ payslips|length }} documento{% if payslips|length != 1 %}s{% endif %}</span>
+    </div>
+
+    {% if payslips %}
+    <div class="payslip-cards">
+      {% for p in payslips %}
+      <a class="card payslip-card" href="/payslips/{{ p.id }}">
+        <div class="payslip-month">
+          <span>{{ PT_MONTHS_SHORT[(p.month[5:7]|int) - 1] }}</span>
+          <strong>{{ p.month[:4] }}</strong>
+        </div>
+        <div class="payslip-card-main">
+          <div class="payslip-card-top">
+            <div>
+              <h3>{{ month_display(p.month) }}</h3>
+              <p>{{ p.employer or 'Sem empregador' }}{% if p.professional_category %} · {{ p.professional_category }}{% endif %}</p>
+            </div>
+            <div class="payslip-net">
+              <span>líquido</span>
+              <strong>{{ eur(p.total_net) }}</strong>
+            </div>
+          </div>
+          <div class="payslip-meta">
+            <span><em>bruto</em> {{ eur(p.gross_taxable + p.gross_exempt) }}</span>
+            <span><em>IRS</em> {{ eur(p.irs_amount) }}</span>
+            <span><em>SS</em> {{ eur(p.ss_amount) }}</span>
+            <span><em>refeição</em> {{ eur(p.net_meal) }}</span>
+            <span class="payslip-open">Abrir {{ icon('arrow-up-right', 13) }}</span>
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    {{ empty_state('receipt', 'Ainda não há recibos.', 'Importa o PDF do recibo de vencimento. O raiz lê o bruto, os descontos, o líquido e o cartão refeição — e tu confirmas antes de guardar.', '/payslips/import', 'Importar o primeiro recibo') }}
+    {% endif %}
+  </section>
+
+  <aside class="payslip-aside">
+    <article class="card side-card">
+      <p class="eyebrow">Como funciona</p>
+      <h2 class="card-title">Ler, confirmar, lançar.</h2>
+      <ol class="step-list">
+        <li><span>01</span><div><strong>Envias o PDF</strong><p>Fica guardado só neste computador.</p></div></li>
+        <li><span>02</span><div><strong>O raiz lê os campos</strong><p>Bruto, IRS, Segurança Social, líquido e cartão refeição.</p></div></li>
+        <li><span>03</span><div><strong>Tu confirmas</strong><p>Nada entra no orçamento sem a tua revisão.</p></div></li>
+        <li><span>04</span><div><strong>Os movimentos aparecem</strong><p>Salário em conta e cartão refeição, separados.</p></div></li>
+      </ol>
+    </article>
+
+    <article class="card side-card side-card-sage">
+      <span class="icon-tile icon-tile-light">{{ icon('lock', 18) }}</span>
+      <h3>Privacidade por desenho.</h3>
+      <p>O ficheiro e os dados ficam em <code>data/</code>. Não há login, cloud, analytics nem chamadas externas. Faz backup quando quiseres.</p>
+      <a class="text-link" href="/backup">{{ icon('download', 14) }} Descarregar backup</a>
+    </article>
+  </aside>
+</div>
+{% endblock %}

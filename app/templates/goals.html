@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% from "macros/ui.html" import progress, ring, empty_state %}
+
+{% block document_title %}Objetivos{% endblock %}
+{% block eyebrow %}Futuro{% endblock %}
+{% block page_title %}Objetivos{% endblock %}
+{% block header_actions %}
+  <button class="btn btn-primary" type="button" data-open-goal>{{ icon('plus', 16) }} Novo objetivo</button>
+{% endblock %}
+
+{% block content %}
+<section class="summary-strip">
+  <div class="summary-item">
+    <span class="summary-label">Guardado</span>
+    <strong class="summary-value">{{ eur(goals.total_current) }}</strong>
+    <span class="summary-note">em todos os objetivos</span>
+  </div>
+  <div class="summary-item">
+    <span class="summary-label">Meta total</span>
+    <strong class="summary-value">{{ eur(goals.total_target) }}</strong>
+    <span class="summary-note">{{ goals['items']|length }} objetivo{% if goals['items']|length != 1 %}s{% endif %}</span>
+  </div>
+  <div class="summary-item">
+    <span class="summary-label">Reforço mensal</span>
+    <strong class="summary-value">{{ eur(goals.monthly_total) }}</strong>
+    <span class="summary-note">planeado por ti</span>
+  </div>
+  <div class="summary-item summary-item-total summary-ring-item">
+    {{ ring(goals.progress, 54, '#2F5D46', '#DCD2BF') }}
+    <div>
+      <span class="summary-label">Progresso</span>
+      <span class="summary-note">do conjunto</span>
+    </div>
+  </div>
+</section>
+
+{% if goals['items'] %}
+<section class="goal-grid">
+  {% for goal in goals['items'] %}
+  <article class="card goal-card">
+    <div class="goal-top">
+      {{ ring(goal.progress, 72, goal.color or '#2F5D46', '#E7DECE') }}
+      <div class="goal-title">
+        <span class="goal-kind">{{ {'emergency':'Fundo de emergência','saving':'Poupança','investment':'Investimento','purchase':'Compra'}.get(goal.kind, 'Objetivo') }}</span>
+        <h3>{{ goal.name }}</h3>
+        {% if goal.deadline %}<p>até {{ date_full(goal.deadline) }}</p>{% endif %}
+      </div>
+      <button class="icon-btn icon-btn-quiet" type="button" data-edit-goal='{{ goal|tojson }}' aria-label="Editar {{ goal.name }}">{{ icon('edit', 15) }}</button>
+    </div>
+
+    <div class="goal-numbers">
+      <strong>{{ eur(goal.current) }}</strong>
+      <span>de {{ eur(goal.target) }}</span>
+    </div>
+    {{ progress(goal.progress, goal.color or '#2F5D46', false, 'Progresso do objetivo ' ~ goal.name) }}
+    <div class="goal-meta">
+      <span>{{ eur(goal.remaining) }} em falta</span>
+      {% if goal.progress >= 100 %}
+      <span class="goal-done">{{ icon('check', 13) }} concluído</span>
+      {% elif goal.projected %}
+      <span>chegada em {{ goal.projected }}</span>
+      {% elif goal.monthly_contribution %}
+      <span>{{ eur(goal.monthly_contribution) }} / mês</span>
+      {% else %}
+      <span>sem reforço definido</span>
+      {% endif %}
+    </div>
+
+    <form class="goal-contribute" method="post" action="/goals/{{ goal.id }}/contribute">
+      <label class="goal-amount">
+        <span class="sr-only">Reforçar {{ goal.name }}</span>
+        <input type="text" name="amount" inputmode="decimal" placeholder="Reforçar €" required>
+      </label>
+      <select name="account_id" aria-label="Conta de origem">
+        {% for a in accounts %}
+        <option value="{{ a.id }}">{{ a.name }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-soft btn-sm" type="submit">{{ icon('plus', 14) }}</button>
+    </form>
+  </article>
+  {% endfor %}
+</section>
+{% else %}
+{{ empty_state('target', 'Um objetivo dá direção ao dinheiro.', 'Começa pelo fundo de emergência: 3 a 6 meses das tuas despesas essenciais. Depois podes pensar em investir com mais calma.', None, None, 'sage') }}
+<div class="empty-action"><button class="btn btn-primary" type="button" data-open-goal>{{ icon('plus', 16) }} Criar objetivo</button></div>
+{% endif %}
+
+<section class="goal-bottom-grid">
+  <article class="card side-card side-card-sage">
+    <span class="icon-tile icon-tile-light">{{ icon('shield', 18) }}</span>
+    <h3>Primeiro, a base.</h3>
+    <p>Um fundo de emergência de 3 a 6 meses cobre o que a vida não avisa. Só depois faz sentido apertar o risco dos investimentos.</p>
+  </article>
+  <article class="card side-card">
+    <span class="icon-tile icon-tile-green">{{ icon('trending-up', 18) }}</span>
+    <h3>Depois, o crescimento.</h3>
+    <p>Com a base segura, o dinheiro do futuro pode trabalhar mais tempo. O raiz não te vende produtos: só te mostra o teu plano.</p>
+  </article>
+</section>
+
+<dialog class="modal" id="goal-modal">
+  <div class="modal-head">
+    <div>
+      <p class="eyebrow" data-modal-eyebrow>Novo objetivo</p>
+      <h2 data-modal-title>Criar objetivo</h2>
+    </div>
+    <button class="icon-btn" type="button" data-close-modal aria-label="Fechar">{{ icon('x', 18) }}</button>
+  </div>
+  <form method="post" action="/goals" id="goal-form" class="form-grid">
+    <label class="field field-full">
+      <span class="field-label">Nome <em>*</em></span>
+      <input type="text" name="name" id="goal-name" placeholder="Ex.: fundo de emergência, viagem, entrada da casa…" required>
+    </label>
+    <label class="field">
+      <span class="field-label">Tipo</span>
+      <select name="kind" id="goal-kind">
+        <option value="emergency">Fundo de emergência</option>
+        <option value="saving">Poupança</option>
+        <option value="investment">Investimento</option>
+        <option value="purchase">Compra</option>
+      </select>
+    </label>
+    <label class="field">
+      <span class="field-label">Data limite</span>
+      <input type="date" name="deadline" id="goal-deadline">
+    </label>
+    <label class="field">
+      <span class="field-label">Valor a atingir <em>*</em></span>
+      <input type="text" name="target" id="goal-target" inputmode="decimal" placeholder="0,00" required>
+    </label>
+    <label class="field">
+      <span class="field-label">Já guardado</span>
+      <input type="text" name="current" id="goal-current" inputmode="decimal" placeholder="0,00">
+    </label>
+    <label class="field">
+      <span class="field-label">Reforço mensal</span>
+      <input type="text" name="monthly_contribution" id="goal-monthly" inputmode="decimal" placeholder="0,00">
+    </label>
+    <label class="field">
+      <span class="field-label">Cor</span>
+      <select name="color" id="goal-color">
+        <option value="#2F5D46">Verde profundo</option>
+        <option value="#7E9B7A">Sálvia</option>
+        <option value="#C08A3E">Ocre</option>
+        <option value="#B65C4A">Terracota</option>
+        <option value="#7E9B9B">Azul calmo</option>
+      </select>
+    </label>
+    <label class="field field-full">
+      <span class="field-label">Notas</span>
+      <input type="text" name="notes" id="goal-notes" placeholder="Opcional">
+    </label>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" type="button" data-close-modal>Cancelar</button>
+      <button class="btn btn-primary" type="submit">{{ icon('check', 16) }} Guardar</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

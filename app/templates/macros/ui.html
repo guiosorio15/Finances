@@ -1,0 +1,88 @@
+{% from "macros/icons.html" import icon %}
+
+{% macro month_switcher(selected, prev, next, title) -%}
+<div class="month-switcher" data-month-switcher>
+  <a class="icon-btn" href="?month={{ prev }}" aria-label="Mês anterior">{{ icon('chevron-left', 16) }}</a>
+  <div class="month-switcher-label">
+    <span class="month-switcher-kicker">Mês</span>
+    <strong>{{ title }}</strong>
+  </div>
+  <a class="icon-btn" href="?month={{ next }}" aria-label="Mês seguinte">{{ icon('chevron-right', 16) }}</a>
+  <details class="month-menu">
+    <summary class="icon-btn" aria-label="Escolher mês">{{ icon('calendar', 16) }}</summary>
+    <div class="menu-panel">
+      <p class="menu-label">Ir para</p>
+      {% for m in months %}
+      <a class="menu-item {% if m == selected %}is-active{% endif %}" href="?month={{ m }}">{{ month_display(m) }}</a>
+      {% endfor %}
+    </div>
+  </details>
+</div>
+{%- endmacro %}
+
+{% macro money(value, class_name="", sign=false) -%}
+<span class="money {{ class_name }}">{{ eur(value, 2, sign) }}</span>
+{%- endmacro %}
+
+{% macro progress(value, color="#2F5D46", thin=false, label="Progresso") -%}
+<div class="progress {% if thin %}progress-thin{% endif %}" role="progressbar" aria-label="{{ label }}" aria-valuenow="{{ value|round|int }}" aria-valuemin="0" aria-valuemax="100">
+  <span style="width: {{ [value, 100]|min }}%; background: {{ color }};"></span>
+</div>
+{%- endmacro %}
+
+{% macro ring(value, size=64, color="#2F5D46", track="#E7DECE", label=None) -%}
+<div class="ring" style="--ring-value: {{ [value, 100]|min }}; --ring-color: {{ color }}; --ring-track: {{ track }}; --ring-size: {{ size }}px;">
+  <span>{% if label %}{{ label }}{% else %}{{ value|round|int }}%{% endif %}</span>
+</div>
+{%- endmacro %}
+
+{% macro empty_state(icon_name, title, body, action_url=None, action_label=None, tone="green") -%}
+<div class="empty-state empty-{{ tone }}">
+  <span class="empty-icon">{{ icon(icon_name, 24) }}</span>
+  <div>
+    <h3>{{ title }}</h3>
+    <p>{{ body }}</p>
+  </div>
+  {% if action_url and action_label %}
+  <a class="btn btn-soft" href="{{ action_url }}">{{ action_label }} {{ icon('arrow-right', 15) }}</a>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{% macro field(label, name, value="", type="text", placeholder="", hint="", step="0.01", required=false, class_name="") -%}
+<label class="field {{ class_name }}">
+  <span class="field-label">{{ label }}{% if required %} <em>*</em>{% endif %}</span>
+  <input type="{{ type }}" name="{{ name }}" value="{{ value }}" placeholder="{{ placeholder }}" {% if type == 'number' %}step="{{ step }}"{% endif %} {% if required %}required{% endif %}>
+  {% if hint %}<span class="field-hint">{{ hint }}</span>{% endif %}
+</label>
+{%- endmacro %}
+
+{% macro select_field(label, name, options, selected=None, required=false, class_name="") -%}
+<label class="field {{ class_name }}">
+  <span class="field-label">{{ label }}{% if required %} <em>*</em>{% endif %}</span>
+  <select name="{{ name }}" {% if required %}required{% endif %}>
+    {% for value, text in options %}
+    <option value="{{ value }}" {% if selected is not none and value|string == selected|string %}selected{% endif %}>{{ text }}</option>
+    {% endfor %}
+  </select>
+</label>
+{%- endmacro %}
+
+{% macro modal(id, title, subtitle="") -%}
+<dialog class="modal" id="{{ id }}">
+  <div class="modal-head">
+    <div>
+      <p class="eyebrow">{{ subtitle }}</p>
+      <h2>{{ title }}</h2>
+    </div>
+    <button class="icon-btn" type="button" data-close-modal aria-label="Fechar">{{ icon('x', 18) }}</button>
+  </div>
+  <div class="modal-body">
+    {{ caller() }}
+  </div>
+</dialog>
+{%- endmacro %}
+
+{% macro icon_tile(icon_name, color="#2F5D46", class_name="") -%}
+<span class="icon-tile {{ class_name }}" style="--tile-color: {{ color }}">{{ icon(icon_name, 18) }}</span>
+{%- endmacro %}

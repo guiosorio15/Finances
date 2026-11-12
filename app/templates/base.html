@@ -1,0 +1,116 @@
+{% from "macros/icons.html" import icon %}
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173528">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="raiz — finanças pessoais locais. Importa o recibo de vencimento, organiza o orçamento e dá destino ao teu dinheiro.">
+  <title>{% block document_title %}raiz{% endblock %} · raiz</title>
+  <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/css/app.css">
+  {% block head %}{% endblock %}
+</head>
+<body class="page-{{ page }}" data-page="{{ page }}">
+  <div class="grain" aria-hidden="true"></div>
+  <div class="nav-scrim" data-nav-close></div>
+
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="/" aria-label="raiz, início">
+      <span class="brand-mark">{{ icon('sprout', 22) }}</span>
+      <span class="brand-word">raiz<span class="brand-dot">.</span></span>
+    </a>
+
+    <nav class="nav" aria-label="Navegação principal">
+      <p class="nav-label">O mês</p>
+      <a class="nav-link {% if page == 'dashboard' %}is-active{% endif %}" href="/">
+        <span class="nav-icon">{{ icon('grid', 19) }}</span>
+        <span>Visão geral</span>
+      </a>
+      <a class="nav-link {% if page == 'transactions' %}is-active{% endif %}" href="/transactions">
+        <span class="nav-icon">{{ icon('arrow-left-right', 19) }}</span>
+        <span>Movimentos</span>
+      </a>
+      <a class="nav-link {% if page == 'budget' %}is-active{% endif %}" href="/budget">
+        <span class="nav-icon">{{ icon('layers', 19) }}</span>
+        <span>Orçamento</span>
+      </a>
+
+      <p class="nav-label">Rendimento</p>
+      <a class="nav-link {% if page == 'payslips' %}is-active{% endif %}" href="/payslips">
+        <span class="nav-icon">{{ icon('receipt', 19) }}</span>
+        <span>Recibos</span>
+      </a>
+      <a class="nav-link {% if page == 'subscriptions' %}is-active{% endif %}" href="/subscriptions">
+        <span class="nav-icon">{{ icon('repeat', 19) }}</span>
+        <span>Subscrições</span>
+      </a>
+      <a class="nav-link {% if page == 'goals' %}is-active{% endif %}" href="/goals">
+        <span class="nav-icon">{{ icon('target', 19) }}</span>
+        <span>Objetivos</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-spacer"></div>
+
+    <div class="sidebar-note">
+      <span class="sidebar-note-icon">{{ icon('lock', 16) }}</span>
+      <p>Tudo fica neste computador.<br>Nenhum dado sai de casa.</p>
+    </div>
+
+    <div class="sidebar-foot">
+      <a class="profile" href="/settings">
+        <span class="avatar">{{ initials(profile_name) }}</span>
+        <span class="profile-copy">
+          <strong>{{ profile_name }}</strong>
+          <span>Dados locais</span>
+        </span>
+      </a>
+      <a class="icon-btn icon-btn-quiet {% if page == 'settings' %}is-active{% endif %}" href="/settings" aria-label="Definições">{{ icon('settings', 18) }}</a>
+    </div>
+  </aside>
+
+  <div class="app">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" type="button" data-nav-open aria-label="Abrir menu">{{ icon('menu', 20) }}</button>
+      <a class="mobile-brand" href="/" aria-label="raiz, início">raiz<span>.</span></a>
+      <div class="topbar-heading">
+        <p class="eyebrow">{% block eyebrow %}Visão geral{% endblock %}</p>
+        <h1>{% block page_title %}raiz{% endblock %}</h1>
+      </div>
+      <div class="topbar-actions">
+        {% block header_actions %}{% endblock %}
+      </div>
+    </header>
+
+    <main class="content" id="main">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="app-footer">
+      <span>raiz <span class="footer-dot">·</span> finanças com raízes</span>
+      <span class="footer-private">{{ icon('lock', 13) }} local e privado</span>
+    </footer>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Navegação rápida">
+    <a class="bottom-link {% if page == 'dashboard' %}is-active{% endif %}" href="/">{{ icon('grid', 19) }}<span>Visão</span></a>
+    <a class="bottom-link {% if page == 'transactions' %}is-active{% endif %}" href="/transactions">{{ icon('arrow-left-right', 19) }}<span>Movimentos</span></a>
+    <a class="bottom-link {% if page == 'budget' %}is-active{% endif %}" href="/budget">{{ icon('layers', 19) }}<span>Orçamento</span></a>
+    <a class="bottom-link {% if page == 'payslips' %}is-active{% endif %}" href="/payslips">{{ icon('receipt', 19) }}<span>Recibos</span></a>
+    <button class="bottom-link" type="button" data-nav-open>{{ icon('menu', 19) }}<span>Mais</span></button>
+  </nav>
+
+  {% if flash or flash_error %}
+  <div class="toast {% if flash_error %}toast-error{% else %}toast-success{% endif %}" role="status" data-toast>
+    <span class="toast-icon">{{ icon('alert' if flash_error else 'check', 18) }}</span>
+    <p>{{ flash_error or flash }}</p>
+    <button class="icon-btn" type="button" data-toast-close aria-label="Fechar">{{ icon('x', 16) }}</button>
+  </div>
+  {% endif %}
+
+  <script src="/static/js/app.js" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

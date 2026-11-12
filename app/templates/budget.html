@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% from "macros/icons.html" import icon %}
+{% from "macros/ui.html" import month_switcher, progress, empty_state %}
+
+{% block document_title %}Orçamento{% endblock %}
+{% block eyebrow %}O mês{% endblock %}
+{% block page_title %}Orçamento{% endblock %}
+{% block header_actions %}
+  {{ month_switcher(selected_month, prev_month, next_month, month_title) }}
+  <a class="btn btn-ghost" href="/settings">{{ icon('settings', 16) }} Alocação</a>
+{% endblock %}
+
+{% block content %}
+<section class="budget-hero">
+  <article class="card budget-hero-main">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">Zero-based budgeting</p>
+        <h2 class="card-title">Cada euro com um destino.</h2>
+      </div>
+      <span class="pill">{{ month_title }}</span>
+    </div>
+    <div class="budget-hero-numbers">
+      <div>
+        <span class="summary-label">Rendimento</span>
+        <strong class="budget-big">{{ eur(budget.income) }}</strong>
+      </div>
+      <div>
+        <span class="summary-label">Atribuído</span>
+        <strong class="budget-big">{{ eur(budget.planned) }}</strong>
+      </div>
+      <div>
+        <span class="summary-label">Por atribuir</span>
+        <strong class="budget-big {% if budget.unassigned < 0 %}is-negative{% endif %}">{{ eur(budget.unassigned) }}</strong>
+      </div>
+    </div>
+    <div class="budget-progress-line">
+      <span style="width: {{ [budget.progress, 100]|min }}%"></span>
+    </div>
+    <p class="card-note">{% if budget.unassigned > 0.01 %}Ainda tens {{ eur(budget.unassigned) }} sem destino. Atribui antes de gastar.{% elif budget.unassigned < -0.01 %}Estás {{ eur(budget.unassigned|abs) }} acima do rendimento. Reduz envelopes.{% else %}O rendimento está todo atribuído. Bom ponto de partida.{% endif %}</p>
+  </article>
+
+  <aside class="card budget-rule-card">
+    <p class="eyebrow">A tua regra</p>
+    <h2 class="card-title">{{ allocation.essentials }} / {{ allocation.lifestyle }} / {{ allocation.future }}</h2>
+    <p class="card-note">Essenciais, estilo de vida e futuro. A regra é uma bússola, não uma camisa de forças.</p>
+    <div class="rule-chips">
+      <span class="rule-chip"><i class="alloc-dot alloc-dot-essentials"></i>{{ allocation.essentials }}% essenciais</span>
+      <span class="rule-chip"><i class="alloc-dot alloc-dot-lifestyle"></i>{{ allocation.lifestyle }}% vida</span>
+      <span class="rule-chip"><i class="alloc-dot alloc-dot-future"></i>{{ allocation.future }}% futuro</span>
+    </div>
+    <form method="post" action="/budget/suggest" onsubmit="return confirm('Isto substitui os valores planeados deste mês. Continuar?');">
+      <input type="hidden" name="month" value="{{ selected_month }}">
+      <button class="btn btn-soft btn-full" type="submit">{{ icon('sparkles', 16) }} Distribuir com esta regra</button>
+    </form>
+    <p class="card-note card-note-small">A distribuição dentro de cada grupo segue o que já gastaste. Ajusta depois.</p>
+  </aside>
+</section>
+
+<form method="post" action="/budget" class="budget-form">
+  <input type="hidden" name="month" value="{{ selected_month }}">
+
+  {% for group in budget.groups %}
+  <section class="card budget-group">
+    <div class="budget-group-head">
+      <div class="budget-group-title">
+        <span class="group-mark group-{{ group.key }}"></span>
+        <div>
+          <h2>{{ group.label }}</h2>
+          <p>{{ group.description }}</p>
+        </div>
+      </div>
+      <div class="budget-group-totals">
+        <span><em>planeado</em> {{ eur(group.planned) }}</span>
+        <span><em>gasto</em> {{ eur(group.spent) }}</span>
+      </div>
+    </div>
+
+    <div class="budget-rows">
+      {% for cat in group.categories %}
+      <div class="budget-row">
+        <div class="budget-cat">
+          <span class="icon-tile" style="--tile-color: {{ cat.color }}">{{ icon(cat.icon or 'more', 16) }}</span>
+          <div>
+            <strong>{{ cat.name }}</strong>
+            <span>{{ eur(cat.spent) }} gastos{% if cat.planned %} · {{ eur(cat.remaining) }} restantes{% endif %}</span>
+          </div>
+        </div>
+        <div class="budget-input">
+          <span>€</span>
+          <input type="text" inputmode="decimal" name="planned_{{ cat.id }}" value="{{ '%.2f'|format(cat.planned)|replace('.', ',') }}" aria-label="Planeado para {{ cat.name }}">
+        </div>
+        <div class="budget-bar">
+          {{ progress(cat.progress, cat.color, false, "Progresso do envelope " ~ cat.name) }}
+          {% if cat.planned and cat.spent > cat.planned %}
+          <span class="budget-over">excedido em {{ eur(cat.spent - cat.planned) }}</span>
+          {% elif cat.planned %}
+          <span class="budget-left">{{ cat.progress|round|int }}% usado</span>
+          {% else %}
+          <span class="budget-left">sem envelope</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+
+  <div class="budget-save">
+    <div>
+      <strong>{{ eur(budget.unassigned) }}</strong>
+      <span>por atribuir</span>
+    </div>
+    <button class="btn btn-primary" type="submit">{{ icon('check', 16) }} Guardar orçamento</button>
+  </div>
+</form>
+
+<section class="card budget-tip">
+  <span class="icon-tile icon-tile-sage">{{ icon('leaf', 18) }}</span>
+  <div>
+    <h3>Não precisas de acertar à primeira.</h3>
+    <p>Um orçamento é uma hipótese. No fim do mês, compara com o que aconteceu e muda uma coisa de cada vez. O hábito faz o resto.</p>
+  </div>
+  <a class="text-link" href="/settings">Gerir categorias {{ icon('arrow-right', 13) }}</a>
+</section>
+{% endblock %}
